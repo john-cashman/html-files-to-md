@@ -6,7 +6,7 @@ from io import BytesIO
 from bs4 import BeautifulSoup
 import re
 
-# This Function convert sHTML to Markdown using beautiful soup - reference 
+# Function to convert HTML to Markdown
 def convert_html_to_markdown(html_content, base_dir):
     soup = BeautifulSoup(html_content, "html.parser")
     markdown_content = []
@@ -31,15 +31,21 @@ def convert_html_to_markdown(html_content, base_dir):
         alt_text = img.get("alt", "Image")
         src = img.get("src", "")
         if src:
-            # Save images into a media folder
+            # Handle relative and absolute paths for images
+            img_path = os.path.join(base_dir, src) if not os.path.isabs(src) else src
             media_path = os.path.join(base_dir, "media")
             os.makedirs(media_path, exist_ok=True)
-            img_file_path = os.path.join(media_path, os.path.basename(src))
-            with open(img_file_path, "wb") as f:
-                f.write(img["data"])
-            markdown_content.append(f"![{alt_text}](media/{os.path.basename(src)})")
+            
+            # If the image exists, copy it to the media folder and reference it
+            if os.path.exists(img_path):
+                dest_path = os.path.join(media_path, os.path.basename(src))
+                shutil.copy(img_path, dest_path)
+                markdown_content.append(f"![{alt_text}](media/{os.path.basename(src)})")
+            else:
+                # Placeholder for missing images
+                markdown_content.append(f"![{alt_text}](image-not-found)")
 
-    # Convert callouts - this callout is kind aimed at how zendesk do callouts - there's likely a better way to do this
+    # Convert callouts
     for div in soup.find_all("div", class_="callout"):
         title = div.find("h4", class_="callout__title")
         content = div.find("p")
