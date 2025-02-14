@@ -42,7 +42,9 @@ def convert_html_to_markdown(html_content, base_dir):
 
 def process_html_zip(uploaded_zip):
     temp_dir = "temp_html_project"
+    output_dir = "temp_markdown_output"
     os.makedirs(temp_dir, exist_ok=True)
+    os.makedirs(output_dir, exist_ok=True)
     
     with zipfile.ZipFile(uploaded_zip, "r") as zip_ref:
         zip_ref.extractall(temp_dir)
@@ -51,22 +53,31 @@ def process_html_zip(uploaded_zip):
     
     if not html_files:
         shutil.rmtree(temp_dir)
-        return None  # Return None if no HTML files found
+        shutil.rmtree(output_dir)
+        return None
+    
+    for html_file in html_files:
+        with open(html_file, "r", encoding="utf-8") as f:
+            html_content = f.read()
+        
+        markdown_content = convert_html_to_markdown(html_content, base_dir=os.path.dirname(html_file))
+        
+        if markdown_content.strip():
+            markdown_filename = os.path.basename(html_file).replace(".html", ".md")
+            markdown_path = os.path.join(output_dir, markdown_filename)
+            with open(markdown_path, "w", encoding="utf-8") as md_file:
+                md_file.write(markdown_content)
     
     output_zip_buffer = BytesIO()
     with zipfile.ZipFile(output_zip_buffer, "w", zipfile.ZIP_DEFLATED) as output_zip:
-        for html_file in html_files:
-            with open(html_file, "r", encoding="utf-8") as f:
-                html_content = f.read()
-
-            markdown_content = convert_html_to_markdown(html_content, base_dir=os.path.dirname(html_file))
-            
-            if markdown_content.strip():
-                markdown_filename = os.path.basename(html_file).replace(".html", ".md")
-                output_zip.writestr(markdown_filename, markdown_content)
+        for root, _, files in os.walk(output_dir):
+            for file in files:
+                file_path = os.path.join(root, file)
+                output_zip.write(file_path, os.path.basename(file_path))
     
     output_zip_buffer.seek(0)
     shutil.rmtree(temp_dir)
+    shutil.rmtree(output_dir)
     return output_zip_buffer
 
 def main():
