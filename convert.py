@@ -9,6 +9,10 @@ import re
 # Function to convert HTML to Markdown while preserving structure
 def convert_html_to_markdown(html_content, base_dir):
     soup = BeautifulSoup(html_content, "html.parser")
+    
+    if not soup.body:  # Ensure body exists
+        return ""
+
     markdown_content = []
 
     def process_element(element):
@@ -20,10 +24,18 @@ def convert_html_to_markdown(html_content, base_dir):
             level = element.name[1]
             return f"{'#' * int(level)} {element.get_text(strip=True)}\n"
 
-        elif element.name == "p":  # Paragraphs
-            return element.get_text(strip=True) + "\n"
+        elif element.name == "p":  # Paragraphs (with inline links)
+            text_parts = []
+            for content in element.contents:
+                if isinstance(content, str):
+                    text_parts.append(content.strip())
+                elif content.name == "a":
+                    link_text = content.get_text(strip=True)
+                    link_href = content.get("href", "#")
+                    text_parts.append(f"[{link_text}]({link_href})")
+            return " ".join(text_parts) + "\n"
 
-        elif element.name == "a":  # Links
+        elif element.name == "a":  # Standalone Links
             link_text = element.get_text(strip=True)
             link_href = element.get("href", "#")
             return f"[{link_text}]({link_href})"
@@ -35,8 +47,7 @@ def convert_html_to_markdown(html_content, base_dir):
                 img_path = os.path.join(base_dir, src) if not os.path.isabs(src) else src
                 media_path = os.path.join(base_dir, "media")
                 os.makedirs(media_path, exist_ok=True)
-
-                if os.path.exists(img_path):  # Copy image to media folder
+                if os.path.exists(img_path):
                     dest_path = os.path.join(media_path, os.path.basename(src))
                     shutil.copy(img_path, dest_path)
                     return f"![{alt_text}](media/{os.path.basename(src)})"
@@ -58,11 +69,12 @@ def convert_html_to_markdown(html_content, base_dir):
 
         return ""  # Ignore unknown elements
 
-    # Process elements **in order**
-    for child in soup.body.children:
-        markdown_content.append(process_element(child))
+    for child in soup.body.descendants:
+        md_text = process_element(child)
+        if md_text.strip():  # Avoid adding blank lines
+            markdown_content.append(md_text)
 
-    return "\n\n".join(filter(None, markdown_content))
+    return "\n\n".join(markdown_content)
 
 # Function to process a ZIP file of HTML pages
 def process_html_zip(uploaded_zip):
@@ -102,7 +114,6 @@ def process_html_zip(uploaded_zip):
 # Streamlit app
 def main():
     st.title("HTML to Markdown Converter")
-
     st.info("""
     Upload a ZIP file containing HTML files and assets (like images).
     The app will convert each HTML file into a Markdown file and bundle them into a ZIP file for download.
@@ -110,7 +121,6 @@ def main():
     """)
 
     uploaded_file = st.file_uploader("Upload a ZIP file", type=["zip"])
-
     if uploaded_file is not None:
         try:
             output_zip = process_html_zip(uploaded_file)
