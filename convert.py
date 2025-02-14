@@ -73,7 +73,7 @@ def process_html_zip(uploaded_zip):
         for root, _, files in os.walk(output_dir):
             for file in files:
                 file_path = os.path.join(root, file)
-                output_zip.write(file_path, os.path.basename(file_path))
+                output_zip.write(file_path, os.path.relpath(file_path, output_dir))
     
     output_zip_buffer.seek(0)
     shutil.rmtree(temp_dir)
