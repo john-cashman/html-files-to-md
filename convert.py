@@ -75,15 +75,15 @@ def convert_html_to_markdown(html_content, base_dir):
                     link_href = content.get("href", "#")
                     hint_content.append(f"[{link_text}]({link_href})")
             formatted_hint = " ".join(hint_content).strip()
-            return f"\n{{% hint style=\"info\" %}}\n{formatted_hint}\n{{% endhint %}}\n"
+            if formatted_hint:
+                return f"\n{{% hint style=\"info\" %}}\n{formatted_hint}\n{{% endhint %}}\n"
 
         return ""
 
     for child in soup.body.find_all(recursive=False):
         md_text = process_element(child)
-        if md_text.strip() and md_text not in processed_elements:
+        if md_text.strip():
             markdown_content.append(md_text)
-            processed_elements.add(md_text)
 
     return "\n\n".join(markdown_content)
 
@@ -107,8 +107,9 @@ def process_html_zip(uploaded_zip):
                     html_content = f.read()
 
                 markdown_content = convert_html_to_markdown(html_content, base_dir=os.path.dirname(html_file))
-                markdown_filename = os.path.basename(html_file).replace(".html", ".md")
-                output_zip.writestr(markdown_filename, markdown_content)
+                if markdown_content.strip():
+                    markdown_filename = os.path.basename(html_file).replace(".html", ".md")
+                    output_zip.writestr(markdown_filename, markdown_content)
 
             media_dir = os.path.join(temp_dir, "media")
             if os.path.exists(media_dir):
