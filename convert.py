@@ -15,6 +15,10 @@ def convert_html_to_markdown(html_content, base_dir):
     markdown_content = []
     processed_elements = set()
 
+    # Extract title from <title> tag
+    title_tag = soup.find("title")
+    page_title = title_tag.get_text(strip=True) if title_tag else "Untitled"  # Default if no title
+
     def process_element(element):
         if element in processed_elements or element is None:
             return ""
@@ -44,10 +48,13 @@ def convert_html_to_markdown(html_content, base_dir):
                     link_href = content.get("href", "#")
                     text_parts.append(f"[{link_text}]({link_href})")
             paragraph = " ".join(text_parts).strip()
+
+            # Check if this exact paragraph content has already been processed
             if paragraph and paragraph not in processed_elements:
-                processed_elements.add(paragraph)
+                processed_elements.add(paragraph)  # Mark the paragraph as processed
                 return paragraph
-            return ""
+            return ""  # Return empty string if already processed or empty
+
 
         elif element.name in ["ul", "ol"]:  # Lists
             list_items = []
@@ -97,7 +104,7 @@ def convert_html_to_markdown(html_content, base_dir):
         if md_text.strip():  # Only add non-empty strings
             markdown_content.append(md_text)
 
-    return "\n\n".join(markdown_content)
+    return "\n\n".join(markdown_content), page_title  # Return title along with content
 
 
 def process_html_zip(uploaded_zip):
@@ -118,8 +125,8 @@ def process_html_zip(uploaded_zip):
                 with open(html_file, "r", encoding="utf-8") as f:
                     html_content = f.read()
 
-                markdown_content = convert_html_to_markdown(html_content, base_dir=os.path.dirname(html_file))
-                markdown_filename = os.path.basename(html_file).replace(".html", ".md")
+                markdown_content, page_title = convert_html_to_markdown(html_content, base_dir=os.path.dirname(html_file))
+                markdown_filename = page_title + ".md"  # Use page title for filename
                 output_zip.writestr(markdown_filename, markdown_content)
 
             media_dir = os.path.join(temp_dir, "media")
