@@ -6,7 +6,6 @@ from io import BytesIO
 from bs4 import BeautifulSoup
 import re
 
-# Function to convert HTML to Markdown while preserving structure and avoiding duplication
 def convert_html_to_markdown(html_content, base_dir):
     soup = BeautifulSoup(html_content, "html.parser")
     
@@ -35,7 +34,7 @@ def convert_html_to_markdown(html_content, base_dir):
                 if isinstance(content, str):
                     text_parts.append(content.strip())
                 elif content.name == "a":
-                    link_text = content.get_text(strip=True)  # Only get text inside the link
+                    link_text = content.get_text(strip=True)
                     link_href = content.get("href", "#")
                     text_parts.append(f"[{link_text}]({link_href})")
             paragraph = " ".join(text_parts).strip()
@@ -66,24 +65,27 @@ def convert_html_to_markdown(html_content, base_dir):
                     return f"![{alt_text}](image-not-found)"
 
         elif element.name == "div" and "note" in element.get("class", []):  # Convert <div class="note"> to hint block
-            content = []
-            for child in element.find_all(recursive=False):
-                child_text = process_element(child)
-                if child_text:
-                    content.append(child_text)
-            if content:
-                return f"\n{{% hint style=\"info\" %}}\n{'\n'.join(content)}\n{{% endhint %}}\n"
+            content_parts = []
+            for child in element.descendants:
+                if child.name == "p":
+                    content_parts.append(process_element(child))
+                elif child.name == "a":
+                    link_text = child.get_text(strip=True)
+                    link_href = child.get("href", "#")
+                    content_parts.append(f"[{link_text}]({link_href})")
+            content = " ".join(content_parts).strip()
+            return f"\n{{% hint style=\"info\" %}}\n{content}\n{{% endhint %}}\n"
 
         return ""
 
-    for child in soup.body.find_all(recursive=False):
+    for child in soup.body.descendants:
         md_text = process_element(child)
-        if md_text.strip():
+        if md_text.strip() and md_text not in processed_elements:
             markdown_content.append(md_text)
+            processed_elements.add(md_text)
 
     return "\n\n".join(markdown_content)
 
-# Function to process a ZIP file of HTML pages
 def process_html_zip(uploaded_zip):
     with zipfile.ZipFile(uploaded_zip, "r") as zip_ref:
         temp_dir = "temp_html_project"
@@ -118,7 +120,6 @@ def process_html_zip(uploaded_zip):
         output_zip_buffer.seek(0)
         return output_zip_buffer
 
-# Streamlit app
 def main():
     st.title("HTML to Markdown Converter")
     st.info("""
