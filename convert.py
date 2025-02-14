@@ -18,6 +18,8 @@ def convert_html_to_markdown(html_content, base_dir):
         if element in processed_elements:
             return ""
 
+        processed_elements.add(element)  # Mark element as processed *immediately*
+
         if element.name == "title":
             title = element.get_text(strip=True)
             return ""  # Title handled separately
@@ -46,7 +48,7 @@ def convert_html_to_markdown(html_content, base_dir):
         elif element.name in ["ul", "ol"]:
             list_items = []
             for li in element.find_all("li"):
-                list_item_content = process_element(li) # Recursive call
+                list_item_content = process_element(li) # Recursive call for list items
                 if list_item_content:
                     list_items.append(list_item_content)
 
@@ -83,14 +85,15 @@ def convert_html_to_markdown(html_content, base_dir):
             text = element.get_text(strip=True)
             return text + "\n" if text else ""
         
-        processed_elements.add(element) # Add to processed *after* processing
-        return ""
+        return "" # Important: Return empty string if no match
+
 
     title = soup.title.string if soup.title else "Untitled"
     markdown_content += f"# {title}\n\n"
 
     if soup.body:
-        markdown_content += process_element(soup.body) # Process the body
+        for child in soup.body.descendants:  # Iterate through ALL descendants
+            markdown_content += process_element(child)
 
     return markdown_content, title
 
