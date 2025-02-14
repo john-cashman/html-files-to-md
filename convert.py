@@ -18,7 +18,10 @@ def convert_html_to_markdown(html_content, base_dir):
 
     def process_element(element):
         """Recursively process an element and convert it to Markdown."""
-        if element in processed_elements or element is None:
+        if element is None: # Check for None first
+            return ""
+
+        if element in processed_elements:
             return ""
 
         if element.name is None:  # Text node
