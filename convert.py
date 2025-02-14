@@ -66,8 +66,16 @@ def convert_html_to_markdown(html_content, base_dir):
                     return f"![{alt_text}](image-not-found)"
 
         elif element.name == "div" and "note" in element.get("class", []):  # Convert <div class="note"> to hint block
-            content = element.get_text(strip=True)
-            return f"\n{{% hint style=\"info\" %}}\n{content}\n{{% endhint %}}\n"
+            hint_content = []
+            for content in element.contents:
+                if isinstance(content, str):
+                    hint_content.append(content.strip())
+                elif content.name == "a":
+                    link_text = content.get_text(strip=True)
+                    link_href = content.get("href", "#")
+                    hint_content.append(f"[{link_text}]({link_href})")
+            formatted_hint = " ".join(hint_content).strip()
+            return f"\n{{% hint style=\"info\" %}}\n{formatted_hint}\n{{% endhint %}}\n"
 
         return ""
 
