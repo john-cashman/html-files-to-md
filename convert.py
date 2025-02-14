@@ -6,6 +6,7 @@ from io import BytesIO
 from bs4 import BeautifulSoup
 import re
 
+# Function to convert HTML to Markdown while preserving structure and avoiding duplication
 def convert_html_to_markdown(html_content, base_dir):
     soup = BeautifulSoup(html_content, "html.parser")
     
@@ -26,9 +27,10 @@ def convert_html_to_markdown(html_content, base_dir):
 
         elif re.match("^h[1-6]$", element.name):  # Headings
             level = element.name[1]
-            return f"{'#' * int(level)} {element.get_text(strip=True)}\n"
+            header_text = f"{'#' * int(level)} {element.get_text(strip=True)}\n"
+            return header_text if header_text not in processed_elements else ""
 
-        elif element.name == "p":  # Paragraphs with inline links
+        elif element.name == "p":  # Paragraphs (handling inline links correctly)
             text_parts = []
             for content in element.contents:
                 if isinstance(content, str):
@@ -38,7 +40,7 @@ def convert_html_to_markdown(html_content, base_dir):
                     link_href = content.get("href", "#")
                     text_parts.append(f"[{link_text}]({link_href})")
             paragraph = " ".join(text_parts).strip()
-            return paragraph if paragraph not in processed_elements else ""
+            return paragraph if paragraph and paragraph not in processed_elements else ""
 
         elif element.name in ["ul", "ol"]:  # Lists
             items = []
@@ -64,13 +66,17 @@ def convert_html_to_markdown(html_content, base_dir):
                 else:
                     return f"![{alt_text}](image-not-found)"
 
-        elif element.name == "div" and "note" in element.get("class", []):  # Hint block
-            content = "\n".join(process_element(child, inside_hint_block=True) for child in element.children if child)
+        elif element.name == "div" and "note" in element.get("class", []):  # Convert <div class="note"> to hint block
+            content_parts = []
+            for child in element.contents:
+                content_parts.append(process_element(child, inside_hint_block=True))  # Mark content as inside hint block
+            
+            content = " ".join(filter(None, content_parts)).strip()
             return f"\n{{% hint style=\"info\" %}}\n{content}\n{{% endhint %}}\n"
 
         return ""
 
-    for child in soup.body.children:
+    for child in soup.body.descendants:
         md_text = process_element(child)
         if md_text.strip() and md_text not in processed_elements:
             markdown_content.append(md_text)
@@ -78,6 +84,7 @@ def convert_html_to_markdown(html_content, base_dir):
 
     return "\n\n".join(markdown_content)
 
+# Function to process a ZIP file of HTML pages
 def process_html_zip(uploaded_zip):
     with zipfile.ZipFile(uploaded_zip, "r") as zip_ref:
         temp_dir = "temp_html_project"
@@ -98,7 +105,10 @@ def process_html_zip(uploaded_zip):
 
                 markdown_content = convert_html_to_markdown(html_content, base_dir=os.path.dirname(html_file))
                 markdown_filename = os.path.basename(html_file).replace(".html", ".md")
-                output_zip.writestr(markdown_filename, markdown_content)
+                
+                # Ensure we only add non-empty files
+                if markdown_content.strip():
+                    output_zip.writestr(markdown_filename, markdown_content)
 
             media_dir = os.path.join(temp_dir, "media")
             if os.path.exists(media_dir):
@@ -112,6 +122,7 @@ def process_html_zip(uploaded_zip):
         output_zip_buffer.seek(0)
         return output_zip_buffer
 
+# Streamlit app
 def main():
     st.title("HTML to Markdown Converter")
     st.info("""
