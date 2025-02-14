@@ -80,13 +80,13 @@ def convert_html_to_markdown(html_content, base_dir):
 
         elif element.name not in ['html', 'body', 'head']:  # Handle other elements
             text = element.get_text(strip=True)
-            return text + "\n" if text else "" #ensure newline is returned
-
+            return text + "\n" if text else ""
 
         return ""
 
     if soup.body:
-        markdown_content += process_element(soup.body)
+        for child in soup.body.descendants:  # Iterate through all descendants
+            markdown_content += process_element(child)  # Accumulate results
 
     return markdown_content
 
