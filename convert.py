@@ -18,9 +18,9 @@ def convert_html_to_markdown(html_content, base_dir):
         if element in processed_elements:
             return ""
 
-        if element.name == "title":
+        if element.name == "title":  # Extract title, but don't add to content yet
             title = element.get_text(strip=True)
-            return f"# {title}\n\n" if title else ""
+            return "" #Title is added later
 
         elif element.name is None:  # Text node
             text = element.strip()
@@ -86,10 +86,13 @@ def convert_html_to_markdown(html_content, base_dir):
         processed_elements.add(element)  # Add to processed *after* processing
         return ""
 
+    title = soup.title.string if soup.title else "Untitled"  # Extract title
+    markdown_content += f"# {title}\n\n" #Add title to the content
+
     if soup.body:
         markdown_content += process_element(soup.body)
 
-    return markdown_content
+    return markdown_content, title #Return title
 
 
 
@@ -111,8 +114,8 @@ def process_html_zip(uploaded_zip):
                 with open(html_file, "r", encoding="utf-8") as f:
                     html_content = f.read()
 
-                markdown_content = convert_html_to_markdown(html_content, base_dir=os.path.dirname(html_file))
-                markdown_filename = os.path.basename(html_file).replace(".html", ".md")
+                markdown_content, title = convert_html_to_markdown(html_content, base_dir=os.path.dirname(html_file))  # Get title
+                markdown_filename = os.path.basename(html_file).replace(".html", ".md") #Preserve file name
                 output_zip.writestr(markdown_filename, markdown_content)
 
             media_dir = os.path.join(temp_dir, "media")
