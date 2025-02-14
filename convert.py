@@ -6,44 +6,46 @@ from io import BytesIO
 from bs4 import BeautifulSoup
 import re
 
-# Function to convert HTML to Markdown while preserving structure and avoiding duplicates
+# Function to convert HTML to Markdown while preserving structure and avoiding duplication
 def convert_html_to_markdown(html_content, base_dir):
     soup = BeautifulSoup(html_content, "html.parser")
     
-    if not soup.body:  # Ensure body exists
+    if not soup.body:
         return ""
 
     markdown_content = []
-    processed_elements = set()  # Keep track of processed elements to avoid duplication
+    processed_elements = set()
 
     def process_element(element):
         """Recursively process an element and convert it to Markdown."""
         if element in processed_elements:
-            return ""  # Skip already processed elements
+            return ""
         processed_elements.add(element)
 
         if element.name is None:  # Text node
             return element.strip()
 
-        elif re.match("^h[1-6]$", element.name):  # Headings (h1 - h6)
+        elif re.match("^h[1-6]$", element.name):  # Headings
             level = element.name[1]
             return f"{'#' * int(level)} {element.get_text(strip=True)}\n"
 
-        elif element.name == "p" and element not in processed_elements:  # Paragraphs (with inline links)
+        elif element.name == "p":  # Paragraphs (handling inline links correctly)
             text_parts = []
             for content in element.contents:
                 if isinstance(content, str):
                     text_parts.append(content.strip())
                 elif content.name == "a":
-                    link_text = content.get_text(strip=True)
+                    link_text = content.get_text(strip=True)  # Only get text inside the link
                     link_href = content.get("href", "#")
                     text_parts.append(f"[{link_text}]({link_href})")
             return " ".join(text_parts) + "\n"
 
-        elif element.name == "a":  # Standalone Links
-            link_text = element.get_text(strip=True)
-            link_href = element.get("href", "#")
-            return f"[{link_text}]({link_href})"
+        elif element.name in ["ul", "ol"]:  # Lists
+            items = []
+            for li in element.find_all("li"):
+                prefix = "- " if element.name == "ul" else "1. "
+                items.append(f"{prefix}{li.get_text(strip=True)}")
+            return "\n".join(items) + "\n"
 
         elif element.name == "img":  # Images
             alt_text = element.get("alt", "Image")
@@ -65,18 +67,11 @@ def convert_html_to_markdown(html_content, base_dir):
             if title and content:
                 return f"\n{{% hint style=\"info\" %}}\n**{title.get_text(strip=True)}**\n\n{content.get_text(strip=True)}\n{{% endhint %}}\n"
 
-        elif element.name in ["ul", "ol"]:  # Lists
-            items = []
-            for li in element.find_all("li"):
-                prefix = "- " if element.name == "ul" else "1. "
-                items.append(f"{prefix}{li.get_text(strip=True)}")
-            return "\n".join(items) + "\n"
-
-        return ""  # Ignore unknown elements
+        return ""
 
     for child in soup.body.descendants:
         md_text = process_element(child)
-        if md_text.strip():  # Avoid adding blank lines
+        if md_text.strip():
             markdown_content.append(md_text)
 
     return "\n\n".join(markdown_content)
