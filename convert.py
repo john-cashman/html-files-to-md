@@ -35,10 +35,11 @@ def convert_html_to_markdown(html_content, base_dir):
             for content in element.contents:
                 if isinstance(content, str):
                     text_parts.append(content.strip())
-                elif content.name == "a":
+                elif content.name == "a":  # Handling links properly
                     link_text = content.get_text(strip=True)
                     link_href = content.get("href", "#")
-                    text_parts.append(f"[{link_text}]({link_href})")
+                    formatted_link = f"[{link_text}]({link_href})"
+                    text_parts.append(formatted_link)
             paragraph = " ".join(text_parts).strip()
             return paragraph if paragraph and paragraph not in processed_elements else ""
 
@@ -69,9 +70,11 @@ def convert_html_to_markdown(html_content, base_dir):
         elif element.name == "div" and "note" in element.get("class", []):  # Convert <div class="note"> to hint block
             content_parts = []
             for child in element.contents:
-                content_parts.append(process_element(child, inside_hint_block=True))  # Mark content as inside hint block
-            
-            content = " ".join(filter(None, content_parts)).strip()
+                processed_child = process_element(child, inside_hint_block=True)
+                if processed_child:
+                    content_parts.append(processed_child)
+
+            content = "\n".join(filter(None, content_parts)).strip()
             return f"\n{{% hint style=\"info\" %}}\n{content}\n{{% endhint %}}\n"
 
         return ""
