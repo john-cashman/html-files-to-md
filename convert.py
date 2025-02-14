@@ -18,7 +18,7 @@ def convert_html_to_markdown(html_content, base_dir):
 
     def process_element(element):
         """Recursively process an element and convert it to Markdown."""
-        if element in processed_elements:
+        if element in processed_elements or element is None:
             return ""
         processed_elements.add(element)
 
@@ -38,13 +38,17 @@ def convert_html_to_markdown(html_content, base_dir):
                     link_text = content.get_text(strip=True)  # Only get text inside the link
                     link_href = content.get("href", "#")
                     text_parts.append(f"[{link_text}]({link_href})")
-            return " ".join(text_parts) + "\n"
+            paragraph = " ".join(text_parts).strip()
+            return paragraph if paragraph not in processed_elements else ""
 
         elif element.name in ["ul", "ol"]:  # Lists
             items = []
             for li in element.find_all("li"):
                 prefix = "- " if element.name == "ul" else "1. "
-                items.append(f"{prefix}{li.get_text(strip=True)}")
+                list_item = f"{prefix}{li.get_text(strip=True)}"
+                if list_item not in processed_elements:
+                    items.append(list_item)
+                    processed_elements.add(list_item)
             return "\n".join(items) + "\n"
 
         elif element.name == "img":  # Images
@@ -69,8 +73,9 @@ def convert_html_to_markdown(html_content, base_dir):
 
     for child in soup.body.descendants:
         md_text = process_element(child)
-        if md_text.strip():
+        if md_text.strip() and md_text not in processed_elements:
             markdown_content.append(md_text)
+            processed_elements.add(md_text)
 
     return "\n\n".join(markdown_content)
 
@@ -110,7 +115,7 @@ def process_html_zip(uploaded_zip):
         return output_zip_buffer
 
 # Streamlit app
-def main()
+def main():
     st.title("HTML to Markdown Converter")
     st.info("""
     Upload a ZIP file containing HTML files and assets (like images).
