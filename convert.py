@@ -110,7 +110,7 @@ def process_html_zip(uploaded_zip):
         return output_zip_buffer
 
 # Streamlit app
-def main():
+def main()
     st.title("HTML to Markdown Converter")
     st.info("""
     Upload a ZIP file containing HTML files and assets (like images).
