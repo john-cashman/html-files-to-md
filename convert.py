@@ -15,11 +15,15 @@ def convert_html_to_markdown(html_content, base_dir):
         if element is None or element in processed_elements:
             return ""
 
-        processed_elements.add(element)  # Add the ELEMENT ITSELF to the set
+        processed_elements.add(element)
 
         if element.name == "title":  # Title
             title = element.get_text(strip=True)
             return f"# {title}\n\n" if title else ""
+
+        elif element.name is None:  # Text node
+            text = element.strip()
+            return text if text else ""
 
         elif re.match("^h[1-6]$", element.name):  # Headings
             level = element.name[1]
@@ -40,13 +44,12 @@ def convert_html_to_markdown(html_content, base_dir):
 
         elif element.name in ["ul", "ol"]:  # Lists
             list_items = []
-
             for li in element.find_all("li"):
-                list_item_content = process_element(li)  # process list item content first
+                list_item_content = process_element(li)
                 if list_item_content:
                     list_items.append(list_item_content)
 
-            if list_items:  # Check for empty lists
+            if list_items:
                 list_type = "- " if element.name == "ul" else "1. "
                 return "\n".join(f"{list_type}{item}" for item in list_items) + "\n"
             return ""
@@ -69,7 +72,7 @@ def convert_html_to_markdown(html_content, base_dir):
         elif element.name == "div" and "note" in element.get("class", []):  # Convert <div class="note"> to hint block
             content = ""
             for child in element.descendants:
-                child_text = process_element(child)  # Recursive call for children
+                child_text = process_element(child)
                 if child_text:
                     content += child_text + " "
             content = content.strip()
@@ -77,7 +80,8 @@ def convert_html_to_markdown(html_content, base_dir):
 
         elif element.name not in ['html', 'body', 'head']:  # Handle other elements
             text = element.get_text(strip=True)
-            return text + "\n" if text else ""
+            return text + "\n" if text else "" #ensure newline is returned
+
 
         return ""
 
@@ -85,6 +89,7 @@ def convert_html_to_markdown(html_content, base_dir):
         markdown_content += process_element(soup.body)
 
     return markdown_content
+
 
 
 def process_html_zip(uploaded_zip):
