@@ -15,9 +15,9 @@ def convert_html_to_markdown(html_content, base_dir):
         if element is None or element in processed_elements:
             return ""
 
-        processed_elements.add(element)
+        processed_elements.add(element)  # Add the ELEMENT ITSELF to the set
 
-        if element.name == "title":  # Title
+        if element.name == "title":
             title = element.get_text(strip=True)
             return f"# {title}\n\n" if title else ""
 
@@ -25,12 +25,12 @@ def convert_html_to_markdown(html_content, base_dir):
             text = element.strip()
             return text if text else ""
 
-        elif re.match("^h[1-6]$", element.name):  # Headings
+        elif re.match("^h[1-6]$", element.name):
             level = element.name[1]
             heading_text = element.get_text(strip=True)
             return f"{'#' * int(level)} {heading_text}\n" if heading_text else ""
 
-        elif element.name == "p":  # Paragraphs
+        elif element.name == "p":
             text_parts = []
             for content in element.contents:
                 if isinstance(content, str):
@@ -42,7 +42,7 @@ def convert_html_to_markdown(html_content, base_dir):
             paragraph = " ".join(text_parts).strip()
             return paragraph + "\n" if paragraph else ""
 
-        elif element.name in ["ul", "ol"]:  # Lists
+        elif element.name in ["ul", "ol"]:
             list_items = []
             for li in element.find_all("li"):
                 list_item_content = process_element(li)
@@ -54,7 +54,7 @@ def convert_html_to_markdown(html_content, base_dir):
                 return "\n".join(f"{list_type}{item}" for item in list_items) + "\n"
             return ""
 
-        elif element.name == "img":  # Images
+        elif element.name == "img":
             alt_text = element.get("alt", "Image")
             src = element.get("src", "")
             if src:
@@ -69,7 +69,7 @@ def convert_html_to_markdown(html_content, base_dir):
                     return f"![{alt_text}](image-not-found)\n"
             return ""
 
-        elif element.name == "div" and "note" in element.get("class", []):  # Convert <div class="note"> to hint block
+        elif element.name == "div" and "note" in element.get("class", []):
             content = ""
             for child in element.descendants:
                 child_text = process_element(child)
@@ -78,15 +78,15 @@ def convert_html_to_markdown(html_content, base_dir):
             content = content.strip()
             return f"\n{{% hint style=\"info\" %}}\n{content}\n{{% endhint %}}\n" if content else ""
 
-        elif element.name not in ['html', 'body', 'head']:  # Handle other elements
+        elif element.name not in ['html', 'body', 'head']:
             text = element.get_text(strip=True)
             return text + "\n" if text else ""
 
-        return ""
+        return ""  # Important: Return empty string if no match
 
     if soup.body:
-        for child in soup.body.descendants:  # Iterate through all descendants
-            markdown_content += process_element(child)  # Accumulate results
+        for child in soup.body.descendants:
+            markdown_content += process_element(child)
 
     return markdown_content
 
