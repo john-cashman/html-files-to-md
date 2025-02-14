@@ -61,11 +61,9 @@ def convert_html_to_markdown(html_content, base_dir):
                 else:
                     return f"![{alt_text}](image-not-found)"
 
-        elif element.name == "div" and "callout" in element.get("class", []):  # Callouts
-            title = element.find("h4", class_="callout__title")
-            content = element.find("p")
-            if title and content:
-                return f"\n{{% hint style=\"info\" %}}\n**{title.get_text(strip=True)}**\n\n{content.get_text(strip=True)}\n{{% endhint %}}\n"
+        elif element.name == "div" and "note" in element.get("class", []):  # Convert <div class="note"> to hint block
+            content = element.get_text(strip=True)
+            return f"\n{{% hint style=\"info\" %}}\n{content}\n{{% endhint %}}\n"
 
         return ""
 
