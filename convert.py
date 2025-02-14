@@ -69,8 +69,8 @@ def process_html_zip(uploaded_zip):
                 markdown_filename = os.path.basename(html_file).replace(".html", ".md")
                 output_zip.writestr(markdown_filename, markdown_content)
     
-    shutil.rmtree(temp_dir)
     output_zip_buffer.seek(0)
+    shutil.rmtree(temp_dir)
     return output_zip_buffer
 
 def main():
