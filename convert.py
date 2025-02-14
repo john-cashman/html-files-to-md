@@ -78,8 +78,14 @@ def convert_html_to_markdown(html_content, base_dir):
             return ""
 
         elif element.name == "div" and "note" in element.get("class", []):  # Convert <div class="note"> to hint block
-            content = element.get_text(strip=True)
-            if content and content not in processed_elements:  # Check for empty content
+            content = ""
+            for child in element.descendants:  # Iterate over all descendants of the div
+                child_text = process_element(child)  # Process each child recursively
+                if child_text:
+                    content += child_text + " "  # Accumulate the content
+
+            content = content.strip()  # Remove leading/trailing spaces from content
+            if content and content not in processed_elements:  # Check for empty content or duplicate content
                 processed_elements.add(content)
                 return f"\n{{% hint style=\"info\" %}}\n{content}\n{{% endhint %}}\n"
             return ""
