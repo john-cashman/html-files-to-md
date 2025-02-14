@@ -65,12 +65,20 @@ def process_html_zip(uploaded_zip):
                 html_content = f.read()
 
             markdown_content = convert_html_to_markdown(html_content, base_dir=os.path.dirname(html_file))
+            
             if markdown_content.strip():
                 markdown_filename = os.path.basename(html_file).replace(".html", ".md")
-                output_zip.writestr(markdown_filename, markdown_content)
-    
-    output_zip_buffer.seek(0)
+                temp_md_path = os.path.join(temp_dir, markdown_filename)
+                
+                # Write to a temporary file first to verify content
+                with open(temp_md_path, "w", encoding="utf-8") as md_file:
+                    md_file.write(markdown_content)
+                
+                # Add the file to the zip archive
+                output_zip.write(temp_md_path, arcname=markdown_filename)
+                
     shutil.rmtree(temp_dir)
+    output_zip_buffer.seek(0)
     return output_zip_buffer
 
 def main():
