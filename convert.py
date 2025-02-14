@@ -10,7 +10,7 @@ def convert_html_to_markdown(html_content, base_dir):
     soup = BeautifulSoup(html_content, "html.parser")
     markdown_content = []
 
-    def process_element(element):
+    def process_element(element, inside_hint=False):
         if element.name is None:
             return element.strip()
         elif re.match("^h[1-6]$", element.name):
@@ -28,13 +28,8 @@ def convert_html_to_markdown(html_content, base_dir):
             return " ".join(text_parts).strip()
         elif element.name == "div" and "note" in element.get("class", []):
             hint_content = []
-            for content in element.contents:
-                if isinstance(content, str):
-                    hint_content.append(content.strip())
-                elif content.name == "a":
-                    link_text = content.get_text(strip=True)
-                    link_href = content.get("href", "#")
-                    hint_content.append(f"[{link_text}]({link_href})")
+            for content in element.find_all("p"):
+                hint_content.append(process_element(content, inside_hint=True))
             return f"\n{{% hint style=\"info\" %}}\n{' '.join(hint_content).strip()}\n{{% endhint %}}\n"
         return ""
 
