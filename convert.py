@@ -15,7 +15,7 @@ def convert_html_to_markdown(html_content, base_dir):
         if element is None or element in processed_elements:
             return ""
 
-        processed_elements.add(element)
+        processed_elements.add(element)  # Add the ELEMENT ITSELF to the set
 
         if element.name == "title":
             title = element.get_text(strip=True)
