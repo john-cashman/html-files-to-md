@@ -12,15 +12,14 @@ def convert_html_to_markdown(html_content, base_dir):
     processed_elements = set()
 
     def process_element(element):
-        if element is None:
+        if element is None or element in processed_elements:
             return ""
 
-        if element in processed_elements:
-            return ""
+        processed_elements.add(element)
 
-        if element.name == "title":  # Extract title, but don't add to content yet
+        if element.name == "title":
             title = element.get_text(strip=True)
-            return "" #Title is added later
+            return ""  # Title handled separately
 
         elif element.name is None:  # Text node
             text = element.strip()
@@ -79,21 +78,19 @@ def convert_html_to_markdown(html_content, base_dir):
             content = content.strip()
             return f"\n{{% hint style=\"info\" %}}\n{content}\n{{% endhint %}}\n" if content else ""
 
-        elif element.name not in ['html', 'body', 'head']:
+        elif element.name not in ['html', 'body', 'head']:  # Handle other elements
             text = element.get_text(strip=True)
             return text + "\n" if text else ""
-
-        processed_elements.add(element)  # Add to processed *after* processing
         return ""
 
-    title = soup.title.string if soup.title else "Untitled"  # Extract title
-    markdown_content += f"# {title}\n\n" #Add title to the content
+    title = soup.title.string if soup.title else "Untitled"
+    markdown_content += f"# {title}\n\n"
 
     if soup.body:
-        markdown_content += process_element(soup.body)
+        for child in soup.body.descendants:
+            markdown_content += process_element(child)
 
-    return markdown_content, title #Return title
-
+    return markdown_content, title
 
 
 def process_html_zip(uploaded_zip):
@@ -114,8 +111,8 @@ def process_html_zip(uploaded_zip):
                 with open(html_file, "r", encoding="utf-8") as f:
                     html_content = f.read()
 
-                markdown_content, title = convert_html_to_markdown(html_content, base_dir=os.path.dirname(html_file))  # Get title
-                markdown_filename = os.path.basename(html_file).replace(".html", ".md") #Preserve file name
+                markdown_content, title = convert_html_to_markdown(html_content, base_dir=os.path.dirname(html_file))
+                markdown_filename = os.path.basename(html_file).replace(".html", ".md")
                 output_zip.writestr(markdown_filename, markdown_content)
 
             media_dir = os.path.join(temp_dir, "media")
