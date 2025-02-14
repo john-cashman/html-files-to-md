@@ -79,7 +79,7 @@ def convert_html_to_markdown(html_content, base_dir):
 
         return ""
 
-    for child in soup.body.descendants:
+    for child in soup.body.find_all(recursive=False):
         md_text = process_element(child)
         if md_text.strip() and md_text not in processed_elements:
             markdown_content.append(md_text)
