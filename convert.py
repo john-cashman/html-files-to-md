@@ -6,7 +6,7 @@ from io import BytesIO
 from bs4 import BeautifulSoup
 import re
 
-# Function to convert HTML to Markdown while preserving structure
+# Function to convert HTML to Markdown while preserving structure and avoiding duplicates
 def convert_html_to_markdown(html_content, base_dir):
     soup = BeautifulSoup(html_content, "html.parser")
     
@@ -14,9 +14,14 @@ def convert_html_to_markdown(html_content, base_dir):
         return ""
 
     markdown_content = []
+    processed_elements = set()  # Keep track of processed elements to avoid duplication
 
     def process_element(element):
         """Recursively process an element and convert it to Markdown."""
+        if element in processed_elements:
+            return ""  # Skip already processed elements
+        processed_elements.add(element)
+
         if element.name is None:  # Text node
             return element.strip()
 
@@ -24,7 +29,7 @@ def convert_html_to_markdown(html_content, base_dir):
             level = element.name[1]
             return f"{'#' * int(level)} {element.get_text(strip=True)}\n"
 
-        elif element.name == "p":  # Paragraphs (with inline links)
+        elif element.name == "p" and element not in processed_elements:  # Paragraphs (with inline links)
             text_parts = []
             for content in element.contents:
                 if isinstance(content, str):
