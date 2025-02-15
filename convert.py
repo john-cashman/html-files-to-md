@@ -6,6 +6,9 @@ from io import BytesIO
 from bs4 import BeautifulSoup
 import re
 
+# Track processed hint content to avoid duplication
+processed_hint_content = set()
+
 def convert_html_to_markdown(html_content, base_dir):
     soup = BeautifulSoup(html_content, "html.parser")
     
@@ -13,8 +16,7 @@ def convert_html_to_markdown(html_content, base_dir):
         return ""
 
     markdown_content = []
-    processed_elements = set()
-
+    
     def process_element(element, inside_hint_block=False, inside_list=False):
         if element is None:
             return ""
@@ -37,10 +39,16 @@ def convert_html_to_markdown(html_content, base_dir):
                     text_parts.append(f"[{link_text}]({link_href})")
             paragraph_text = " ".join(text_parts).strip()
             
+            # Avoid duplication of hint content
+            if inside_hint_block:
+                processed_hint_content.add(paragraph_text)  
+            
+            if paragraph_text in processed_hint_content:
+                return ""  # Skip duplicate hint content outside the block
+            
             if inside_list:
                 return paragraph_text  # Keep list items properly formatted
             
-            processed_elements.add(paragraph_text)
             return paragraph_text
 
         elif element.name in ["ul", "ol"]:
@@ -74,7 +82,9 @@ def convert_html_to_markdown(html_content, base_dir):
             
             content_parts = []
             for child in element.find_all("p", recursive=True):
-                content_parts.append(process_element(child, inside_hint_block=True))
+                content = process_element(child, inside_hint_block=True)
+                if content:  
+                    content_parts.append(content)  # Add only if not empty
             
             content = "\n".join(filter(None, content_parts)).strip()
             
