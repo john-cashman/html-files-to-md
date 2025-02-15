@@ -15,7 +15,7 @@ def convert_html_to_markdown(html_content, base_dir):
     markdown_content = []
     processed_elements = set()
 
-    def process_element(element, inside_hint_block=False):
+    def process_element(element, inside_hint_block=False, inside_list=False):
         if element is None:
             return ""
         
@@ -32,14 +32,25 @@ def convert_html_to_markdown(html_content, base_dir):
                 if isinstance(content, str):
                     text_parts.append(content.strip())
                 elif content.name == "a":
-                    link_text = content.get_text(strip=True)
-                    link_href = content.get("href", "#")
+                    link_text = content.get_text(strip=True) if content.get_text(strip=True) else "Untitled"
+                    link_href = content.get("href", "#").replace(".html", ".md")
                     text_parts.append(f"[{link_text}]({link_href})")
             paragraph_text = " ".join(text_parts).strip()
-            if paragraph_text in processed_elements:
-                return ""  # Avoid duplicates
+            
+            if inside_list:
+                return paragraph_text  # Keep list items properly formatted
+            
             processed_elements.add(paragraph_text)
             return paragraph_text
+
+        elif element.name in ["ul", "ol"]:
+            items = []
+            for li in element.find_all("li", recursive=False):
+                prefix = "- " if element.name == "ul" else "1. "
+                list_item_content = process_element(li, inside_list=True)
+                if list_item_content.strip():
+                    items.append(f"{prefix}{list_item_content}")
+            return "\n".join(items) + "\n"
 
         elif element.name == "img":
             alt_text = element.get("alt", "Image")
@@ -56,7 +67,6 @@ def convert_html_to_markdown(html_content, base_dir):
                     return f"![{alt_text}](image-not-found)"
 
         elif element.name == "div" and "note" in element.get("class", []):
-            # Extract note image if present
             note_image = ""
             img_tag = element.find("img")
             if img_tag:
@@ -71,13 +81,6 @@ def convert_html_to_markdown(html_content, base_dir):
             return f"\n{{% hint style=\"info\" %}}\n{note_image}\n{content}\n{{% endhint %}}\n"
 
         return ""
-
-    for child in soup.body.find_all():
-        md_text = process_element(child)
-        if md_text.strip():
-            markdown_content.append(md_text)
-
-    return "\n\n".join(markdown_content)
 
 def process_html_zip(uploaded_zip):
     with zipfile.ZipFile(uploaded_zip, "r") as zip_ref:
@@ -97,8 +100,6 @@ def process_html_zip(uploaded_zip):
                 
                 if markdown_content.strip():
                     output_zip.writestr(markdown_filename, markdown_content)
-                else:
-                    print(f"Skipping empty Markdown file: {markdown_filename}")
 
             media_dir = os.path.join(temp_dir, "media")
             if os.path.exists(media_dir):
@@ -117,7 +118,6 @@ def main():
     st.info("""
     Upload a ZIP file containing HTML files and assets (like images).
     The app will convert each HTML file into a Markdown file and bundle them into a ZIP file for download.
-    Images will be referenced correctly and included in a `media` folder.
     """)
 
     uploaded_file = st.file_uploader("Upload a ZIP file", type=["zip"])
