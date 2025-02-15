@@ -16,7 +16,7 @@ def convert_html_to_markdown(html_content, base_dir):
     processed_elements = set()
 
     def process_element(element, inside_hint_block=False, inside_list=False):
-        if element is None:
+        if element is None or element.get_text(strip=True) is None:
             return ""
         
         if element.name is None:
@@ -91,7 +91,7 @@ def generate_summary_md(index_html_path):
     links_found = False
     
     for link in soup.find_all("a", href=True):
-        text = link.get_text(strip=True) or "Untitled"
+        text = link.get_text(strip=True) if link.get_text() else "Untitled"
         href = link.get("href", "").replace(".html", ".md")
         if href:
             summary_lines.append(f"- [{text}]({href})")
