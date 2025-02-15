@@ -15,18 +15,20 @@ def convert_html_to_markdown(html_content, base_dir):
     markdown_content = []
     processed_elements = set()
 
-    def process_element(element, inside_hint_block=False):
+    def process_element(element, inside_hint_block=False, inside_list=False):
         if element is None:
             return ""
         
-        if element.name is None:  # Text node
+        if element.name is None:
             return element.strip()
 
-        elif re.match("^h[1-6]$", element.name):  # Headings
+        elif re.match("^h[1-6]$", element.name):
             level = element.name[1]
             return f"{'#' * int(level)} {element.get_text(strip=True)}\n"
 
-        elif element.name == "p":  # Paragraphs
+        elif element.name == "p":
+            if inside_list:
+                return ""
             text_parts = []
             for content in element.contents:
                 if isinstance(content, str):
@@ -35,18 +37,17 @@ def convert_html_to_markdown(html_content, base_dir):
                     link_text = content.get_text(strip=True)
                     link_href = content.get("href", "#")
                     text_parts.append(f"[{link_text}]({link_href})")
-            paragraph = " ".join(text_parts).strip()
-            return paragraph if paragraph else ""
+            return " ".join(text_parts).strip()
 
-        elif element.name in ["ul", "ol"]:  # Lists
+        elif element.name in ["ul", "ol"]:
             items = []
             for li in element.find_all("li", recursive=False):
                 prefix = "- " if element.name == "ul" else "1. "
-                list_item = f"{prefix}{li.get_text(strip=True)}"
+                list_item = f"{prefix}{process_element(li, inside_list=True)}"
                 items.append(list_item)
             return "\n".join(items) + "\n"
 
-        elif element.name == "img":  # Images
+        elif element.name == "img":
             alt_text = element.get("alt", "Image")
             src = element.get("src", "")
             if src:
@@ -60,7 +61,7 @@ def convert_html_to_markdown(html_content, base_dir):
                 else:
                     return f"![{alt_text}](image-not-found)"
 
-        elif element.name == "div" and "note" in element.get("class", []):  # Hint block
+        elif element.name == "div" and "note" in element.get("class", []):
             content_parts = []
             for child in element.find_all("p", recursive=False):
                 content_parts.append(process_element(child, inside_hint_block=True))
