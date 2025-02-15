@@ -48,15 +48,15 @@ def convert_html_to_markdown(html_content, base_dir):
 
         elif element.name in ["ul", "ol"]:
             items = []
+            list_type = "- " if element.name == "ul" else "1. "
+
             for li in element.find_all("li", recursive=False):
-                prefix = "- " if element.name == "ul" else "1. "
                 list_item_content = process_element(li, inside_hint_block=inside_hint_block, inside_list=True)
-                
                 if list_item_content.strip():
-                    items.append(f"{prefix}{list_item_content}")
+                    items.append(f"{list_type}{list_item_content}")
 
             list_text = "\n".join(items)
-            
+
             if inside_hint_block:
                 processed_hint_content.add(list_text)
 
@@ -93,7 +93,7 @@ def convert_html_to_markdown(html_content, base_dir):
 
             content = "\n".join(filter(None, content_parts)).strip()
             
-            return f"\n{{% hint style=\"info\" %}}\n{note_image}\n{content}\n{{% endhint %}}\n"
+            return f"\n{{% hint style=\"info\" %}}\n\n{note_image}\n{content}\n\n{{% endhint %}}\n"
 
         return ""
 
