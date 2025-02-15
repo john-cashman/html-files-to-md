@@ -82,13 +82,19 @@ def convert_html_to_markdown(html_content, base_dir):
 
         return ""
 
-    for child in soup.body.find_all():
-        md_text = process_element(child)
-        if md_text.strip():
-            markdown_content.append(md_text)
-
-    markdown_output = "\n\n".join(markdown_content).strip()
-    return markdown_output if markdown_output else "# Content Extraction Failed - Please Check Input"
+def generate_summary_md(index_html_path):
+    """Generate a SUMMARY.md file from index-en.html."""
+    with open(index_html_path, "r", encoding="utf-8") as f:
+        soup = BeautifulSoup(f, "html.parser")
+    
+    summary_lines = ["# Summary", ""]
+    
+    for link in soup.find_all("a", href=True):
+        text = link.get_text(strip=True)
+        href = link["href"].replace(".html", ".md")
+        summary_lines.append(f"- [{text}]({href})")
+    
+    return "\n".join(summary_lines)
 
 def process_html_zip(uploaded_zip):
     with zipfile.ZipFile(uploaded_zip, "r") as zip_ref:
@@ -97,6 +103,7 @@ def process_html_zip(uploaded_zip):
         zip_ref.extractall(temp_dir)
 
         html_files = [os.path.join(root, file) for root, _, files in os.walk(temp_dir) for file in files if file.endswith(".html")]
+        index_html_path = os.path.join(temp_dir, "index-en.html")
 
         output_zip_buffer = BytesIO()
         with zipfile.ZipFile(output_zip_buffer, "w", zipfile.ZIP_DEFLATED) as output_zip:
@@ -110,7 +117,11 @@ def process_html_zip(uploaded_zip):
                     output_zip.writestr(markdown_filename, markdown_content)
                 else:
                     print(f"Skipping empty Markdown file: {markdown_filename}")
-
+            
+            if os.path.exists(index_html_path):
+                summary_md_content = generate_summary_md(index_html_path)
+                output_zip.writestr("SUMMARY.md", summary_md_content)
+            
             media_dir = os.path.join(temp_dir, "media")
             if os.path.exists(media_dir):
                 for root, _, files in os.walk(media_dir):
@@ -128,7 +139,7 @@ def main():
     st.info("""
     Upload a ZIP file containing HTML files and assets (like images).
     The app will convert each HTML file into a Markdown file and bundle them into a ZIP file for download.
-    Images will be referenced correctly and included in a `media` folder.
+    If `index-en.html` is found, a `SUMMARY.md` will be generated as a table of contents.
     """)
 
     uploaded_file = st.file_uploader("Upload a ZIP file", type=["zip"])
