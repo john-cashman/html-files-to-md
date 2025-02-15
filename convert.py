@@ -32,8 +32,8 @@ def convert_html_to_markdown(html_content, base_dir):
                 if isinstance(content, str):
                     text_parts.append(content.strip())
                 elif content.name == "a":
-                    link_text = content.get_text(strip=True)
-                    link_href = content.get("href", "#")
+                    link_text = content.get_text(strip=True) if content.get_text(strip=True) else "Untitled"
+                    link_href = content.get("href", "#").replace(".html", ".md")
                     text_parts.append(f"[{link_text}]({link_href})")
             paragraph_text = " ".join(text_parts).strip()
             
@@ -90,7 +90,7 @@ def generate_summary_md(index_html_path):
     summary_lines = ["# Summary", ""]
     
     for link in soup.find_all("a", href=True):
-        text = link.get_text(strip=True)
+        text = link.get_text(strip=True) if link.get_text(strip=True) else "Untitled"
         href = link["href"].replace(".html", ".md")
         summary_lines.append(f"- [{text}]({href})")
     
