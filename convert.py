@@ -26,6 +26,9 @@ def convert_html_to_markdown(html_content, base_dir):
             level = element.name[1]
             return f"{'#' * int(level)} {element.get_text(strip=True)}\n"
 
+        elif element.name == "p" and inside_list:
+            return " " + element.get_text(strip=True)  # Ensures list items stay together
+
         elif element.name in ["p", "li"]:
             text_parts = []
             for content in element.contents:
@@ -38,7 +41,7 @@ def convert_html_to_markdown(html_content, base_dir):
             paragraph_text = " ".join(text_parts).strip()
             
             if inside_list:
-                return paragraph_text  # Keep list items formatted correctly
+                return paragraph_text  # Keep list items properly formatted
             
             if paragraph_text in processed_elements:
                 return ""  # Avoid duplicates
