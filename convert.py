@@ -6,7 +6,6 @@ from io import BytesIO
 from bs4 import BeautifulSoup
 import re
 
-# Store content that has been processed inside hint blocks
 processed_hint_content = set()
 
 def convert_html_to_markdown(html_content, base_dir):
@@ -38,28 +37,33 @@ def convert_html_to_markdown(html_content, base_dir):
                     link_href = content.get("href", "#")
                     text_parts.append(f"[{link_text}]({link_href})")
             paragraph_text = " ".join(text_parts).strip()
-            
-            # Avoid duplication of hint content
-            if inside_hint_block:
-                processed_hint_content.add(paragraph_text)  
-            
-            # If this content was already processed inside a hint block, do not repeat it
-            if paragraph_text in processed_hint_content and not inside_hint_block:
+
+            if inside_hint_block or inside_list:
+                processed_hint_content.add(paragraph_text)
+
+            if paragraph_text in processed_hint_content and not inside_hint_block and not inside_list:
                 return ""
 
-            if inside_list:
-                return paragraph_text  # Keep list items properly formatted
-            
             return paragraph_text
 
         elif element.name in ["ul", "ol"]:
             items = []
             for li in element.find_all("li", recursive=False):
                 prefix = "- " if element.name == "ul" else "1. "
-                list_item_content = process_element(li, inside_list=True)
+                list_item_content = process_element(li, inside_hint_block=inside_hint_block, inside_list=True)
+                
                 if list_item_content.strip():
                     items.append(f"{prefix}{list_item_content}")
-            return "\n".join(items) + "\n"
+
+            list_text = "\n".join(items)
+            
+            if inside_hint_block:
+                processed_hint_content.add(list_text)
+
+            if list_text in processed_hint_content and not inside_hint_block:
+                return ""
+
+            return list_text + "\n"
 
         elif element.name == "img":
             alt_text = element.get("alt", "Image")
@@ -82,11 +86,11 @@ def convert_html_to_markdown(html_content, base_dir):
                 note_image = process_element(img_tag)
             
             content_parts = []
-            for child in element.find_all("p", recursive=True):
+            for child in element.find_all(["p", "ul", "ol"], recursive=True):
                 content = process_element(child, inside_hint_block=True)
-                if content:  
-                    content_parts.append(content)  # Add only if not empty
-            
+                if content:
+                    content_parts.append(content)
+
             content = "\n".join(filter(None, content_parts)).strip()
             
             return f"\n{{% hint style=\"info\" %}}\n{note_image}\n{content}\n{{% endhint %}}\n"
