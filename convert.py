@@ -88,13 +88,16 @@ def generate_summary_md(index_html_path):
         soup = BeautifulSoup(f, "html.parser")
     
     summary_lines = ["# Summary", ""]
+    links_found = False
     
     for link in soup.find_all("a", href=True):
-        text = link.get_text(strip=True) if link.get_text(strip=True) else "Untitled"
-        href = link["href"].replace(".html", ".md")
-        summary_lines.append(f"- [{text}]({href})")
+        text = link.get_text(strip=True) or "Untitled"
+        href = link.get("href", "").replace(".html", ".md")
+        if href:
+            summary_lines.append(f"- [{text}]({href})")
+            links_found = True
     
-    return "\n".join(summary_lines)
+    return "\n".join(summary_lines) if links_found else ""
 
 def process_html_zip(uploaded_zip):
     with zipfile.ZipFile(uploaded_zip, "r") as zip_ref:
@@ -120,7 +123,8 @@ def process_html_zip(uploaded_zip):
             
             if os.path.exists(index_html_path):
                 summary_md_content = generate_summary_md(index_html_path)
-                output_zip.writestr("SUMMARY.md", summary_md_content)
+                if summary_md_content.strip():
+                    output_zip.writestr("SUMMARY.md", summary_md_content)
             
             media_dir = os.path.join(temp_dir, "media")
             if os.path.exists(media_dir):
