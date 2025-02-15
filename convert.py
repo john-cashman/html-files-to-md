@@ -27,7 +27,15 @@ def convert_html_to_markdown(html_content, base_dir):
             return f"{'#' * int(level)} {element.get_text(strip=True)}\n"
 
         elif element.name in ["p", "li"]:
-            paragraph_text = element.get_text(strip=True)
+            text_parts = []
+            for content in element.contents:
+                if isinstance(content, str):
+                    text_parts.append(content.strip())
+                elif content.name == "a":
+                    link_text = content.get_text(strip=True)
+                    link_href = content.get("href", "#")
+                    text_parts.append(f"[{link_text}]({link_href})")
+            paragraph_text = " ".join(text_parts).strip()
             if paragraph_text in processed_elements:
                 return ""  # Avoid duplicates
             processed_elements.add(paragraph_text)
