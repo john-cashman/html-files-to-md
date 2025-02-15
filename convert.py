@@ -6,52 +6,58 @@ from io import BytesIO
 from bs4 import BeautifulSoup
 import re
 
-# Function to convert HTML to Markdown while preserving structure and avoiding duplication
 def convert_html_to_markdown(html_content, base_dir):
     soup = BeautifulSoup(html_content, "html.parser")
-    
-    if not soup.body:
-        return ""
-
-    markdown_content = []
+    markdown_content = ""
     processed_elements = set()
 
     def process_element(element):
-        """Recursively process an element and convert it to Markdown."""
-        if element in processed_elements or element is None:
+        if element is None:
             return ""
-        processed_elements.add(element)
 
-        if element.name is None:  # Text node
-            return element.strip()
+        if element in processed_elements:
+            return ""
 
-        elif re.match("^h[1-6]$", element.name):  # Headings
+        processed_elements.add(element)  # Mark element as processed *immediately*
+
+        if element.name == "title":
+            title = element.get_text(strip=True)
+            return ""  # Title handled separately
+
+        elif element.name is None:  # Text node
+            text = element.strip()
+            return text if text else ""
+
+        elif re.match("^h[1-6]$", element.name):
             level = element.name[1]
-            return f"{'#' * int(level)} {element.get_text(strip=True)}\n"
+            heading_text = element.get_text(strip=True)
+            return f"{'#' * int(level)} {heading_text}\n" if heading_text else ""
 
-        elif element.name == "p":  # Paragraphs (handling inline links correctly)
+        elif element.name == "p":
             text_parts = []
             for content in element.contents:
                 if isinstance(content, str):
                     text_parts.append(content.strip())
                 elif content.name == "a":
-                    link_text = content.get_text(strip=True)  # Only get text inside the link
+                    link_text = content.get_text(strip=True)
                     link_href = content.get("href", "#")
                     text_parts.append(f"[{link_text}]({link_href})")
             paragraph = " ".join(text_parts).strip()
-            return paragraph if paragraph not in processed_elements else ""
+            return paragraph + "\n" if paragraph else ""
 
-        elif element.name in ["ul", "ol"]:  # Lists
-            items = []
+        elif element.name in ["ul", "ol"]:
+            list_items = []
             for li in element.find_all("li"):
-                prefix = "- " if element.name == "ul" else "1. "
-                list_item = f"{prefix}{li.get_text(strip=True)}"
-                if list_item not in processed_elements:
-                    items.append(list_item)
-                    processed_elements.add(list_item)
-            return "\n".join(items) + "\n"
+                list_item_content = process_element(li)  # Recursive call for list items
+                if list_item_content:
+                    list_items.append(list_item_content)
 
-        elif element.name == "img":  # Images
+            if list_items:
+                list_type = "- " if element.name == "ul" else "1. "
+                return "\n".join(f"{list_type}{item}" for item in list_items) + "\n"
+            return ""
+
+        elif element.name == "img":
             alt_text = element.get("alt", "Image")
             src = element.get("src", "")
             if src:
@@ -61,25 +67,36 @@ def convert_html_to_markdown(html_content, base_dir):
                 if os.path.exists(img_path):
                     dest_path = os.path.join(media_path, os.path.basename(src))
                     shutil.copy(img_path, dest_path)
-                    return f"![{alt_text}](media/{os.path.basename(src)})"
+                    return f"![{alt_text}](media/{os.path.basename(src)})\n"
                 else:
-                    return f"![{alt_text}](image-not-found)"
+                    return f"![{alt_text}](image-not-found)\n"
+            return ""
 
-        elif element.name == "div" and "note" in element.get("class", []):  # Convert <div class="note"> to hint block
-            content = element.get_text(strip=True)
-            return f"\n{{% hint style=\"info\" %}}\n{content}\n{{% endhint %}}\n"
+        elif element.name == "div" and "note" in element.get("class", []):
+            content = ""
+            for child in element.descendants:
+                child_text = process_element(child)
+                if child_text:
+                    content += child_text + " "
+            content = content.strip()
+            return f"\n{{% hint style=\"info\" %}}\n{content}\n{{% endhint %}}\n" if content else ""
 
-        return ""
+        elif element.name not in ['html', 'body', 'head']:  # Handle other elements
+            text = element.get_text(strip=True)
+            return text + "\n" if text else ""
 
-    for child in soup.body.descendants:
-        md_text = process_element(child)
-        if md_text.strip() and md_text not in processed_elements:
-            markdown_content.append(md_text)
-            processed_elements.add(md_text)
+        return ""  # Important: Return empty string if no match
 
-    return "\n\n".join(markdown_content)
+    title = soup.title.string if soup.title else "Untitled"
+    markdown_content += f"# {title}\n\n"
 
-# Function to process a ZIP file of HTML pages
+    if soup.body:
+        for child in soup.body.descendants:  # Iterate through ALL descendants
+            markdown_content += process_element(child)
+
+    return markdown_content, title
+
+
 def process_html_zip(uploaded_zip):
     with zipfile.ZipFile(uploaded_zip, "r") as zip_ref:
         temp_dir = "temp_html_project"
@@ -98,7 +115,7 @@ def process_html_zip(uploaded_zip):
                 with open(html_file, "r", encoding="utf-8") as f:
                     html_content = f.read()
 
-                markdown_content = convert_html_to_markdown(html_content, base_dir=os.path.dirname(html_file))
+                markdown_content, title = convert_html_to_markdown(html_content, base_dir=os.path.dirname(html_file))
                 markdown_filename = os.path.basename(html_file).replace(".html", ".md")
                 output_zip.writestr(markdown_filename, markdown_content)
 
@@ -114,7 +131,7 @@ def process_html_zip(uploaded_zip):
         output_zip_buffer.seek(0)
         return output_zip_buffer
 
-# Streamlit app
+
 def main():
     st.title("HTML to Markdown Converter")
     st.info("""
@@ -136,6 +153,7 @@ def main():
             )
         except Exception as e:
             st.error(f"An error occurred: {e}")
+
 
 if __name__ == "__main__":
     main()
