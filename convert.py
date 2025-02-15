@@ -38,7 +38,7 @@ def convert_html_to_markdown(html_content, base_dir):
             paragraph_text = " ".join(text_parts).strip()
             
             if inside_list:
-                return paragraph_text  # Keep list items without repeating outside
+                return paragraph_text  # Keep list items formatted correctly
             
             if paragraph_text in processed_elements:
                 return ""  # Avoid duplicates
@@ -49,9 +49,9 @@ def convert_html_to_markdown(html_content, base_dir):
             items = []
             for li in element.find_all("li", recursive=False):
                 prefix = "- " if element.name == "ul" else "1. "
-                list_item = f"{prefix}{process_element(li, inside_list=True)}"
-                if list_item.strip():
-                    items.append(list_item)
+                list_item_content = process_element(li, inside_list=True)
+                if list_item_content.strip():
+                    items.append(f"{prefix}{list_item_content}")
             return "\n".join(items) + "\n"
 
         elif element.name == "img":
