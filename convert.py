@@ -27,24 +27,21 @@ def convert_html_to_markdown(html_content, base_dir):
             return f"{'#' * int(level)} {element.get_text(strip=True)}\n"
 
         elif element.name == "p":
+            paragraph_text = element.get_text(strip=True)
             if inside_list:
-                return ""
-            text_parts = []
-            for content in element.contents:
-                if isinstance(content, str):
-                    text_parts.append(content.strip())
-                elif content.name == "a":
-                    link_text = content.get_text(strip=True)
-                    link_href = content.get("href", "#")
-                    text_parts.append(f"[{link_text}]({link_href})")
-            return " ".join(text_parts).strip()
+                return paragraph_text  # Only return text without formatting if inside a list
+            if paragraph_text in processed_elements:
+                return ""  # Avoid duplicate paragraphs
+            processed_elements.add(paragraph_text)
+            return paragraph_text
 
         elif element.name in ["ul", "ol"]:
             items = []
             for li in element.find_all("li", recursive=False):
                 prefix = "- " if element.name == "ul" else "1. "
                 list_item = f"{prefix}{process_element(li, inside_list=True)}"
-                items.append(list_item)
+                if list_item.strip():
+                    items.append(list_item)
             return "\n".join(items) + "\n"
 
         elif element.name == "img":
