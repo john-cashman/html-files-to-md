@@ -69,7 +69,7 @@ def convert_html_to_markdown(html_content, base_dir):
 
         return ""
 
-    for child in soup.body.find_all(recursive=False):
+    for child in soup.body.find_all():
         md_text = process_element(child)
         if md_text.strip():
             markdown_content.append(md_text)
@@ -91,8 +91,11 @@ def process_html_zip(uploaded_zip):
                     html_content = f.read()
                 markdown_content = convert_html_to_markdown(html_content, base_dir=os.path.dirname(html_file))
                 markdown_filename = os.path.basename(html_file).replace(".html", ".md")
+                
                 if markdown_content.strip():
                     output_zip.writestr(markdown_filename, markdown_content)
+                else:
+                    print(f"Skipping empty Markdown file: {markdown_filename}")
 
             media_dir = os.path.join(temp_dir, "media")
             if os.path.exists(media_dir):
