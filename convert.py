@@ -15,7 +15,7 @@ def convert_html_to_markdown(html_content, base_dir):
     markdown_content = []
     processed_elements = set()
 
-    def process_element(element, inside_hint_block=False):
+    def process_element(element, inside_hint_block=False, inside_list=False):
         if element is None:
             return ""
         
@@ -36,10 +36,23 @@ def convert_html_to_markdown(html_content, base_dir):
                     link_href = content.get("href", "#")
                     text_parts.append(f"[{link_text}]({link_href})")
             paragraph_text = " ".join(text_parts).strip()
+            
+            if inside_list:
+                return paragraph_text  # Keep list items without repeating outside
+            
             if paragraph_text in processed_elements:
                 return ""  # Avoid duplicates
             processed_elements.add(paragraph_text)
             return paragraph_text
+
+        elif element.name in ["ul", "ol"]:
+            items = []
+            for li in element.find_all("li", recursive=False):
+                prefix = "- " if element.name == "ul" else "1. "
+                list_item = f"{prefix}{process_element(li, inside_list=True)}"
+                if list_item.strip():
+                    items.append(list_item)
+            return "\n".join(items) + "\n"
 
         elif element.name == "img":
             alt_text = element.get("alt", "Image")
@@ -56,7 +69,6 @@ def convert_html_to_markdown(html_content, base_dir):
                     return f"![{alt_text}](image-not-found)"
 
         elif element.name == "div" and "note" in element.get("class", []):
-            # Extract note image if present
             note_image = ""
             img_tag = element.find("img")
             if img_tag:
