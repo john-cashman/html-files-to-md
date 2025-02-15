@@ -16,15 +16,19 @@ def convert_html_to_markdown(html_content, base_dir):
     processed_elements = set()
 
     def process_element(element, inside_hint_block=False, inside_list=False):
-        if element is None or element.get_text(strip=True) is None:
+        if element is None or not hasattr(element, 'get_text'):
             return ""
         
+        text_content = element.get_text(strip=True) if element.get_text() else ""
+        if not text_content:
+            return ""
+
         if element.name is None:
-            return element.strip()
+            return text_content
 
         elif re.match("^h[1-6]$", element.name):
             level = element.name[1]
-            return f"{'#' * int(level)} {element.get_text(strip=True)}\n"
+            return f"{'#' * int(level)} {text_content}\n"
 
         elif element.name in ["p", "li"]:
             text_parts = []
@@ -91,6 +95,8 @@ def generate_summary_md(index_html_path):
     links_found = False
     
     for link in soup.find_all("a", href=True):
+        if not link or not hasattr(link, 'get_text'):
+            continue
         text = link.get_text(strip=True) if link.get_text() else "Untitled"
         href = link.get("href", "").replace(".html", ".md")
         if href:
