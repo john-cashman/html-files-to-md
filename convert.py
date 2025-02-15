@@ -37,7 +37,9 @@ def convert_html_to_markdown(html_content, base_dir):
                     text_parts.append(content.strip())
                 elif content.name == "a":
                     link_text = content.get_text(strip=True) if content.get_text(strip=True) else "Untitled"
-                    link_href = content.get("href", "#").replace(".html", ".md")
+                    link_href = content.get("href", "#")
+                    if link_href:
+                        link_href = link_href.replace(".html", ".md")
                     text_parts.append(f"[{link_text}]({link_href})")
             paragraph_text = " ".join(text_parts).strip()
             
@@ -95,11 +97,13 @@ def generate_summary_md(index_html_path):
     links_found = False
     
     for link in soup.find_all("a", href=True):
-        if not link or not hasattr(link, 'get_text'):
+        if link is None or not hasattr(link, 'get_text'):
             continue
+        
         text = link.get_text(strip=True) if link.get_text() else "Untitled"
-        href = link.get("href", "").replace(".html", ".md")
+        href = link.get("href", "")
         if href:
+            href = href.replace(".html", ".md")
             summary_lines.append(f"- [{text}]({href})")
             links_found = True
     
@@ -124,8 +128,6 @@ def process_html_zip(uploaded_zip):
                 
                 if markdown_content.strip():
                     output_zip.writestr(markdown_filename, markdown_content)
-                else:
-                    print(f"Skipping empty Markdown file: {markdown_filename}")
             
             if os.path.exists(index_html_path):
                 summary_md_content = generate_summary_md(index_html_path)
