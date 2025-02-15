@@ -15,7 +15,7 @@ def convert_html_to_markdown(html_content, base_dir):
     markdown_content = []
     processed_elements = set()
 
-    def process_element(element, inside_hint_block=False, inside_list=False):
+    def process_element(element, inside_hint_block=False):
         if element is None:
             return ""
         
@@ -26,23 +26,12 @@ def convert_html_to_markdown(html_content, base_dir):
             level = element.name[1]
             return f"{'#' * int(level)} {element.get_text(strip=True)}\n"
 
-        elif element.name == "p":
+        elif element.name in ["p", "li"]:
             paragraph_text = element.get_text(strip=True)
-            if inside_list:
-                return paragraph_text  # Only return text without formatting if inside a list
             if paragraph_text in processed_elements:
-                return ""  # Avoid duplicate paragraphs
+                return ""  # Avoid duplicates
             processed_elements.add(paragraph_text)
             return paragraph_text
-
-        elif element.name in ["ul", "ol"]:
-            items = []
-            for li in element.find_all("li", recursive=False):
-                prefix = "- " if element.name == "ul" else "1. "
-                list_item = f"{prefix}{process_element(li, inside_list=True)}"
-                if list_item.strip():
-                    items.append(list_item)
-            return "\n".join(items) + "\n"
 
         elif element.name == "img":
             alt_text = element.get("alt", "Image")
