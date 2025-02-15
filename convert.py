@@ -15,20 +15,16 @@ def convert_html_to_markdown(html_content, base_dir):
     markdown_content = []
     processed_elements = set()
 
-    def process_element(element, inside_hint_block=False, inside_list=False):
-        if element is None or not hasattr(element, 'get_text'):
+    def process_element(element, inside_hint_block=False):
+        if element is None:
             return ""
         
-        text_content = element.get_text(strip=True) if element.get_text() else ""
-        if not text_content:
-            return ""
-
         if element.name is None:
-            return text_content
+            return element.strip()
 
         elif re.match("^h[1-6]$", element.name):
             level = element.name[1]
-            return f"{'#' * int(level)} {text_content}\n"
+            return f"{'#' * int(level)} {element.get_text(strip=True)}\n"
 
         elif element.name in ["p", "li"]:
             text_parts = []
@@ -36,27 +32,14 @@ def convert_html_to_markdown(html_content, base_dir):
                 if isinstance(content, str):
                     text_parts.append(content.strip())
                 elif content.name == "a":
-                    link_text = content.get_text(strip=True) if content.get_text(strip=True) else "Untitled"
+                    link_text = content.get_text(strip=True)
                     link_href = content.get("href", "#")
-                    if link_href:
-                        link_href = link_href.replace(".html", ".md")
                     text_parts.append(f"[{link_text}]({link_href})")
             paragraph_text = " ".join(text_parts).strip()
-            
-            if inside_list:
-                return paragraph_text  # Keep list items properly formatted
-            
+            if paragraph_text in processed_elements:
+                return ""  # Avoid duplicates
             processed_elements.add(paragraph_text)
             return paragraph_text
-
-        elif element.name in ["ul", "ol"]:
-            items = []
-            for li in element.find_all("li", recursive=False):
-                prefix = "- " if element.name == "ul" else "1. "
-                list_item_content = process_element(li, inside_list=True)
-                if list_item_content.strip():
-                    items.append(f"{prefix}{list_item_content}")
-            return "\n".join(items) + "\n"
 
         elif element.name == "img":
             alt_text = element.get("alt", "Image")
@@ -73,6 +56,7 @@ def convert_html_to_markdown(html_content, base_dir):
                     return f"![{alt_text}](image-not-found)"
 
         elif element.name == "div" and "note" in element.get("class", []):
+            # Extract note image if present
             note_image = ""
             img_tag = element.find("img")
             if img_tag:
@@ -88,26 +72,12 @@ def convert_html_to_markdown(html_content, base_dir):
 
         return ""
 
-def generate_summary_md(index_html_path):
-    """Generate a SUMMARY.md file from index-en.html."""
-    with open(index_html_path, "r", encoding="utf-8") as f:
-        soup = BeautifulSoup(f, "html.parser")
-    
-    summary_lines = ["# Summary", ""]
-    links_found = False
-    
-    for link in soup.find_all("a", href=True):
-        if link is None or not hasattr(link, 'get_text'):
-            continue
-        
-        text = link.get_text(strip=True) if link.get_text() else "Untitled"
-        href = link.get("href", "")
-        if href:
-            href = href.replace(".html", ".md")
-            summary_lines.append(f"- [{text}]({href})")
-            links_found = True
-    
-    return "\n".join(summary_lines) if links_found else ""
+    for child in soup.body.find_all():
+        md_text = process_element(child)
+        if md_text.strip():
+            markdown_content.append(md_text)
+
+    return "\n\n".join(markdown_content)
 
 def process_html_zip(uploaded_zip):
     with zipfile.ZipFile(uploaded_zip, "r") as zip_ref:
@@ -116,7 +86,6 @@ def process_html_zip(uploaded_zip):
         zip_ref.extractall(temp_dir)
 
         html_files = [os.path.join(root, file) for root, _, files in os.walk(temp_dir) for file in files if file.endswith(".html")]
-        index_html_path = os.path.join(temp_dir, "index-en.html")
 
         output_zip_buffer = BytesIO()
         with zipfile.ZipFile(output_zip_buffer, "w", zipfile.ZIP_DEFLATED) as output_zip:
@@ -128,12 +97,9 @@ def process_html_zip(uploaded_zip):
                 
                 if markdown_content.strip():
                     output_zip.writestr(markdown_filename, markdown_content)
-            
-            if os.path.exists(index_html_path):
-                summary_md_content = generate_summary_md(index_html_path)
-                if summary_md_content.strip():
-                    output_zip.writestr("SUMMARY.md", summary_md_content)
-            
+                else:
+                    print(f"Skipping empty Markdown file: {markdown_filename}")
+
             media_dir = os.path.join(temp_dir, "media")
             if os.path.exists(media_dir):
                 for root, _, files in os.walk(media_dir):
@@ -151,7 +117,7 @@ def main():
     st.info("""
     Upload a ZIP file containing HTML files and assets (like images).
     The app will convert each HTML file into a Markdown file and bundle them into a ZIP file for download.
-    If `index-en.html` is found, a `SUMMARY.md` will be generated as a table of contents.
+    Images will be referenced correctly and included in a `media` folder.
     """)
 
     uploaded_file = st.file_uploader("Upload a ZIP file", type=["zip"])
