@@ -40,8 +40,6 @@ def convert_html_to_markdown(html_content, base_dir):
             if inside_list:
                 return paragraph_text  # Keep list items properly formatted
             
-            if paragraph_text in processed_elements:
-                return ""  # Avoid duplicates
             processed_elements.add(paragraph_text)
             return paragraph_text
 
@@ -84,13 +82,13 @@ def convert_html_to_markdown(html_content, base_dir):
 
         return ""
 
-    for child in soup.body.find_all(recursive=False):
+    for child in soup.body.find_all():
         md_text = process_element(child)
         if md_text.strip():
             markdown_content.append(md_text)
 
     markdown_output = "\n\n".join(markdown_content).strip()
-    return markdown_output if markdown_output else "# No Content Extracted"
+    return markdown_output if markdown_output else "# Content Extraction Failed - Please Check Input"
 
 def process_html_zip(uploaded_zip):
     with zipfile.ZipFile(uploaded_zip, "r") as zip_ref:
