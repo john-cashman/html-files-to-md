@@ -32,7 +32,7 @@ def convert_html_to_markdown(html_content, base_dir):
                 if isinstance(content, str):
                     text_parts.append(content.strip())
                 elif content.name == "a":
-                    link_text = content.get_text(strip=True) if content.get_text(strip=True) else "Untitled"
+                    link_text = content.get_text(strip=True)
                     link_href = content.get("href", "#")
                     text_parts.append(f"[{link_text}]({link_href})")
             paragraph_text = " ".join(text_parts).strip()
@@ -67,15 +67,28 @@ def convert_html_to_markdown(html_content, base_dir):
                     return f"![{alt_text}](image-not-found)"
 
         elif element.name == "div" and "note" in element.get("class", []):
+            note_image = ""
+            img_tag = element.find("img")
+            if img_tag:
+                note_image = process_element(img_tag)
+            
             content_parts = []
             for child in element.find_all("p", recursive=True):
                 content_parts.append(process_element(child, inside_hint_block=True))
             
             content = "\n".join(filter(None, content_parts)).strip()
             
-            return f"\n{{% hint style=\"info\" %}}\n{content}\n{{% endhint %}}\n"
+            return f"\n{{% hint style=\"info\" %}}\n{note_image}\n{content}\n{{% endhint %}}\n"
 
         return ""
+
+    for child in soup.body.find_all():
+        md_text = process_element(child)
+        if md_text.strip():
+            markdown_content.append(md_text)
+
+    markdown_output = "\n\n".join(markdown_content).strip()
+    return markdown_output if markdown_output else "# Content Extraction Failed - Please Check Input"
 
 def process_html_zip(uploaded_zip):
     with zipfile.ZipFile(uploaded_zip, "r") as zip_ref:
@@ -95,6 +108,8 @@ def process_html_zip(uploaded_zip):
                 
                 if markdown_content.strip():
                     output_zip.writestr(markdown_filename, markdown_content)
+                else:
+                    print(f"Skipping empty Markdown file: {markdown_filename}")
 
             media_dir = os.path.join(temp_dir, "media")
             if os.path.exists(media_dir):
@@ -113,6 +128,7 @@ def main():
     st.info("""
     Upload a ZIP file containing HTML files and assets (like images).
     The app will convert each HTML file into a Markdown file and bundle them into a ZIP file for download.
+    Images will be referenced correctly and included in a `media` folder.
     """)
 
     uploaded_file = st.file_uploader("Upload a ZIP file", type=["zip"])
