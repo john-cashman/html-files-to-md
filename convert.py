@@ -16,18 +16,17 @@ def convert_html_to_markdown(html_content, base_dir):
     processed_elements = set()
 
     def process_element(element, inside_hint_block=False):
-        if element in processed_elements or element is None:
+        if element is None:
             return ""
-        processed_elements.add(element)
-
-        if element.name is None:
+        
+        if element.name is None:  # Text node
             return element.strip()
 
-        elif re.match("^h[1-6]$", element.name):
+        elif re.match("^h[1-6]$", element.name):  # Headings
             level = element.name[1]
             return f"{'#' * int(level)} {element.get_text(strip=True)}\n"
 
-        elif element.name == "p":
+        elif element.name == "p":  # Paragraphs
             text_parts = []
             for content in element.contents:
                 if isinstance(content, str):
@@ -37,19 +36,17 @@ def convert_html_to_markdown(html_content, base_dir):
                     link_href = content.get("href", "#")
                     text_parts.append(f"[{link_text}]({link_href})")
             paragraph = " ".join(text_parts).strip()
-            return paragraph if paragraph and paragraph not in processed_elements else ""
+            return paragraph if paragraph else ""
 
-        elif element.name in ["ul", "ol"]:
+        elif element.name in ["ul", "ol"]:  # Lists
             items = []
-            for li in element.find_all("li"):
+            for li in element.find_all("li", recursive=False):
                 prefix = "- " if element.name == "ul" else "1. "
                 list_item = f"{prefix}{li.get_text(strip=True)}"
-                if list_item not in processed_elements:
-                    items.append(list_item)
-                    processed_elements.add(list_item)
+                items.append(list_item)
             return "\n".join(items) + "\n"
 
-        elif element.name == "img":
+        elif element.name == "img":  # Images
             alt_text = element.get("alt", "Image")
             src = element.get("src", "")
             if src:
@@ -63,7 +60,7 @@ def convert_html_to_markdown(html_content, base_dir):
                 else:
                     return f"![{alt_text}](image-not-found)"
 
-        elif element.name == "div" and "note" in element.get("class", []):
+        elif element.name == "div" and "note" in element.get("class", []):  # Hint block
             content_parts = []
             for child in element.find_all("p", recursive=False):
                 content_parts.append(process_element(child, inside_hint_block=True))
@@ -72,11 +69,10 @@ def convert_html_to_markdown(html_content, base_dir):
 
         return ""
 
-    for child in soup.body.children:
+    for child in soup.body.find_all(recursive=False):
         md_text = process_element(child)
-        if md_text.strip() and md_text not in processed_elements:
+        if md_text.strip():
             markdown_content.append(md_text)
-            processed_elements.add(md_text)
 
     return "\n\n".join(markdown_content)
 
@@ -95,7 +91,8 @@ def process_html_zip(uploaded_zip):
                     html_content = f.read()
                 markdown_content = convert_html_to_markdown(html_content, base_dir=os.path.dirname(html_file))
                 markdown_filename = os.path.basename(html_file).replace(".html", ".md")
-                output_zip.writestr(markdown_filename, markdown_content)
+                if markdown_content.strip():
+                    output_zip.writestr(markdown_filename, markdown_content)
 
             media_dir = os.path.join(temp_dir, "media")
             if os.path.exists(media_dir):
