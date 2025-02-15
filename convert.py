@@ -26,9 +26,6 @@ def convert_html_to_markdown(html_content, base_dir):
             level = element.name[1]
             return f"{'#' * int(level)} {element.get_text(strip=True)}\n"
 
-        elif element.name == "p" and inside_list:
-            return " " + element.get_text(strip=True)  # Ensures list items stay together
-
         elif element.name in ["p", "li"]:
             text_parts = []
             for content in element.contents:
@@ -92,7 +89,8 @@ def convert_html_to_markdown(html_content, base_dir):
         if md_text.strip():
             markdown_content.append(md_text)
 
-    return "\n\n".join(markdown_content)
+    markdown_output = "\n\n".join(markdown_content).strip()
+    return markdown_output if markdown_output else "# No Content Extracted"
 
 def process_html_zip(uploaded_zip):
     with zipfile.ZipFile(uploaded_zip, "r") as zip_ref:
