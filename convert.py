@@ -6,7 +6,7 @@ from io import BytesIO
 from bs4 import BeautifulSoup
 import re
 
-# Track processed hint content to avoid duplication
+# Store content that has been processed inside hint blocks
 processed_hint_content = set()
 
 def convert_html_to_markdown(html_content, base_dir):
@@ -43,9 +43,10 @@ def convert_html_to_markdown(html_content, base_dir):
             if inside_hint_block:
                 processed_hint_content.add(paragraph_text)  
             
-            if paragraph_text in processed_hint_content:
-                return ""  # Skip duplicate hint content outside the block
-            
+            # If this content was already processed inside a hint block, do not repeat it
+            if paragraph_text in processed_hint_content and not inside_hint_block:
+                return ""
+
             if inside_list:
                 return paragraph_text  # Keep list items properly formatted
             
