@@ -33,7 +33,7 @@ def convert_html_to_markdown(html_content, base_dir):
                     text_parts.append(content.strip())
                 elif content.name == "a":
                     link_text = content.get_text(strip=True) if content.get_text(strip=True) else "Untitled"
-                    link_href = content.get("href", "#").replace(".html", ".md")
+                    link_href = content.get("href", "#")
                     text_parts.append(f"[{link_text}]({link_href})")
             paragraph_text = " ".join(text_parts).strip()
             
@@ -67,18 +67,13 @@ def convert_html_to_markdown(html_content, base_dir):
                     return f"![{alt_text}](image-not-found)"
 
         elif element.name == "div" and "note" in element.get("class", []):
-            note_image = ""
-            img_tag = element.find("img")
-            if img_tag:
-                note_image = process_element(img_tag)
-            
             content_parts = []
             for child in element.find_all("p", recursive=True):
                 content_parts.append(process_element(child, inside_hint_block=True))
             
             content = "\n".join(filter(None, content_parts)).strip()
             
-            return f"\n{{% hint style=\"info\" %}}\n{note_image}\n{content}\n{{% endhint %}}\n"
+            return f"\n{{% hint style=\"info\" %}}\n{content}\n{{% endhint %}}\n"
 
         return ""
 
