@@ -5,6 +5,17 @@ import shutil
 from io import BytesIO
 from bs4 import BeautifulSoup
 import re
+import chardet
+
+# Store content that has been processed inside hint blocks
+processed_hint_content = set()
+
+def detect_encoding(file_path):
+    """Detects the encoding of a given file."""
+    with open(file_path, "rb") as f:
+        raw_data = f.read(10000)  # Read a chunk of the file
+    result = chardet.detect(raw_data)
+    return result["encoding"] or "utf-8"  # Default to UTF-8 if detection fails
 
 def convert_html_to_markdown(html_content, base_dir):
     soup = BeautifulSoup(html_content, "html.parser")
@@ -13,8 +24,7 @@ def convert_html_to_markdown(html_content, base_dir):
         return ""
 
     markdown_content = []
-    processed_elements = set()
-
+    
     def process_element(element, inside_hint_block=False, inside_list=False):
         if element is None:
             return ""
@@ -37,10 +47,15 @@ def convert_html_to_markdown(html_content, base_dir):
                     text_parts.append(f"[{link_text}]({link_href})")
             paragraph_text = " ".join(text_parts).strip()
             
+            if inside_hint_block:
+                processed_hint_content.add(paragraph_text)  
+
+            if paragraph_text in processed_hint_content and not inside_hint_block:
+                return ""
+
             if inside_list:
-                return paragraph_text  # Keep list items properly formatted
+                return paragraph_text  
             
-            processed_elements.add(paragraph_text)
             return paragraph_text
 
         elif element.name in ["ul", "ol"]:
@@ -74,7 +89,9 @@ def convert_html_to_markdown(html_content, base_dir):
             
             content_parts = []
             for child in element.find_all("p", recursive=True):
-                content_parts.append(process_element(child, inside_hint_block=True))
+                content = process_element(child, inside_hint_block=True)
+                if content:  
+                    content_parts.append(content)  
             
             content = "\n".join(filter(None, content_parts)).strip()
             
@@ -91,44 +108,44 @@ def convert_html_to_markdown(html_content, base_dir):
     return markdown_output if markdown_output else "# Content Extraction Failed - Please Check Input"
 
 def process_html_zip(uploaded_zip):
+    """Processes a ZIP file containing HTML files and converts them to Markdown."""
     with zipfile.ZipFile(uploaded_zip, "r") as zip_ref:
         temp_dir = "temp_html_project"
         os.makedirs(temp_dir, exist_ok=True)
         zip_ref.extractall(temp_dir)
 
-        html_files = [os.path.join(root, file) for root, _, files in os.walk(temp_dir) for file in files if file.endswith(".html")]
+        html_files = [
+            os.path.join(root, file) for root, _, files in os.walk(temp_dir) for file in files if file.endswith(".html")
+        ]
 
         output_zip_buffer = BytesIO()
         with zipfile.ZipFile(output_zip_buffer, "w", zipfile.ZIP_DEFLATED) as output_zip:
             for html_file in html_files:
-                with open(html_file, "r", encoding="utf-8") as f:
-                    html_content = f.read()
+                encoding = detect_encoding(html_file)
+                try:
+                    with open(html_file, "r", encoding=encoding, errors="replace") as f:
+                        html_content = f.read()
+                except Exception as e:
+                    st.error(f"Error reading {html_file}: {e}")
+                    continue
+
                 markdown_content = convert_html_to_markdown(html_content, base_dir=os.path.dirname(html_file))
                 markdown_filename = os.path.basename(html_file).replace(".html", ".md")
-                
+
                 if markdown_content.strip():
                     output_zip.writestr(markdown_filename, markdown_content)
                 else:
                     print(f"Skipping empty Markdown file: {markdown_filename}")
-
-            media_dir = os.path.join(temp_dir, "media")
-            if os.path.exists(media_dir):
-                for root, _, files in os.walk(media_dir):
-                    for file in files:
-                        file_path = os.path.join(root, file)
-                        arcname = os.path.relpath(file_path, temp_dir)
-                        output_zip.write(file_path, arcname)
 
         shutil.rmtree(temp_dir)
         output_zip_buffer.seek(0)
         return output_zip_buffer
 
 def main():
-    st.title("HTML to Markdown Converter")
+    st.title("HTML to GitBook Markdown")
     st.info("""
-    Upload a ZIP file containing HTML files and assets (like images).
+    Upload a ZIP file containing HTML files.
     The app will convert each HTML file into a Markdown file and bundle them into a ZIP file for download.
-    Images will be referenced correctly and included in a `media` folder.
     """)
 
     uploaded_file = st.file_uploader("Upload a ZIP file", type=["zip"])
