@@ -142,7 +142,7 @@ def process_html_zip(uploaded_zip):
         return output_zip_buffer
 
 def main():
-    st.title("HTML to GitBook Markdown")
+    st.title("HTML to GB Markdown")
     st.info("""
     Upload a ZIP file containing HTML files.
     The app will convert each HTML file into a Markdown file and bundle them into a ZIP file for download.
